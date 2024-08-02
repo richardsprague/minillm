@@ -160,13 +160,16 @@ def generate_text(model, tokenizer, tokens, max_length=100, temperature=0.7, top
             probabilities = F.softmax(filtered_logits, dim=-1)
 
             next_token = torch.multinomial(probabilities, 1)
+
+            if next_token.item() == 94:
+                break
             
             if next_token != last_token:
                 generated = torch.cat((generated, next_token.unsqueeze(0)), dim=1)
             
             last_token = next_token        
-            if next_token.item() == 94:
-                break
+            
+
     # print(generated[0])
     return generated[0]#tokenizer.decode(generated[0], skip_special_tokens=True), list(generated)
     # return tokenizer.decode(list(generated[0]))
@@ -234,11 +237,6 @@ params = sum([np.prod(p.size()) for p in model_parameters])
 print("num parameters", str(int(params/10**6)) + "M")
 
 
-# model.load_state_dict(torch.load("llm_token.pt", map_location=device))
-# model.load_state_dict(torch.load("llm_simple_conv_large.pt", map_location=device))
-# model.load_state_dict(torch.load("/home/nathan/Desktop/llm/model70m_july25.pt", map_location=device))
-# model.load_state_dict(torch.load("chat_70m_july29.pt", map_location=device, weights_only=True))
-# model.load_state_dict(torch.load("model_261_july26.pt", map_location=device, weights_only=True))
 model.load_state_dict(torch.load("model_30m_aug2_eye_qa.pt", map_location=device, weights_only=True))
 
 model.eval()
