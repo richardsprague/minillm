@@ -1,4 +1,5 @@
 from torch.utils.data import Dataset, DataLoader
+import argparse
 import torch
 import torch.nn as nn
 import json
@@ -204,12 +205,44 @@ print("num parameters", str(int(params/10**6)) + "M")
 # model.load_state_dict(torch.load("llm_simple_conv_large.pt", map_location=device))
 model.load_state_dict(torch.load("model70m.pt", map_location=device))
 
-model.eval()
+# model.eval()
 
-torch.manual_seed(1)
+# torch.manual_seed(1)
 
-prompt = "The boiling point of"
+# prompt = "The boiling point of"
 
-with torch.set_grad_enabled(False):
-    generated_text = generate_text(model, tokenizer, prompt, max_length=30, temperature=0.8, top_p=0.9, device=device)
-print(generated_text)
+# with torch.set_grad_enabled(False):
+#     generated_text = generate_text(model, tokenizer, prompt, max_length=30, temperature=0.8, top_p=0.9, device=device)
+# print(generated_text)
+
+
+
+# model.load_state_dict(torch.load("llm_token.pt", map_location=device))
+# model.load_state_dict(torch.load("llm_simple_conv_large.pt", map_location=device))
+# model.load_state_dict(torch.load("llm_57m_gpt2.pt", map_location=device))
+
+
+def main():
+    parser = argparse.ArgumentParser(description='Transformer Inference Script')
+    parser.add_argument('-i', '--input', type=str, required=True, help='Input text to replace the string')
+    
+    args = parser.parse_args()
+    input_text = args.input
+
+    model.eval()
+
+    str_txt = ""
+    while True:
+        i = input_text
+        str_txt += i
+        tokens = tokenizer.convert_tokens_to_ids(tokenizer.tokenize(str_txt))
+        
+        l = len(str_txt)
+        with torch.set_grad_enabled(False):
+            t = generate_text(model, tokenizer, i, max_length=20, temperature=0.99, device=device)
+
+        print(t)
+        break
+
+if __name__ == "__main__":
+    main()
