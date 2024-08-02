@@ -208,7 +208,7 @@ model.eval()
 
 torch.manual_seed(1)
 
-prompt = "In WWII, the Allies were"
+prompt = "The boiling point of"
 
 with torch.set_grad_enabled(False):
     generated_text = generate_text(model, tokenizer, prompt, max_length=30, temperature=0.8, top_p=0.9, device=device)
