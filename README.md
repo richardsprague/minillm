@@ -1,7 +1,5 @@
 # LLM
-Transfomer model. Trained on various datasets. Most recently this: https://www.kaggle.com/datasets/nbroad/wiki-20220301-en
+Transfomer model. Trained on various datasets, like Fineweb, Fineweb-edu, wikipedia, and finetuned on Ultrachat
 
-download 30M parameter model finetuned for Q&A on eye health here: https://drive.google.com/file/d/1jSKeKrOHopKljzhsvlrv7zF4Sa-Dr9yV/view?usp=sharing
-
-(old model)
-Download 70M parameter model here: https://drive.google.com/file/d/1dZZuE6ZqECHnYOyzjBcfhiKC9Tz0tSqu/view?usp=sharing (updated 7/25/24)
+Here is the best model so far (498M parameters):
+https://drive.google.com/file/d/12D6YtXPZZPfni-umDjbDvBBFLxAXXU2Z/view?usp=drive_link
