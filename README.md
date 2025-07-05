@@ -1,6 +1,6 @@
 # MinillM
 
-[![CI/CD Pipeline](https://github.com/richardsprague/minillm/actions/workflows/ci.yml/badge.svg)](https://github.com/richardsprague/minillm/actions/workflows/ci.yml)
+[![CI/CD Pipeline](https://github.com/nsprague/minillm/actions/workflows/ci.yml/badge.svg)](https://github.com/nsprague/minillm/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 
@@ -13,7 +13,16 @@ A production-ready, modular transformer-based language model implementation base
 - **🌐 Production Ready**: FastAPI web server, Docker support, CI/CD pipeline
 - **🔧 Hardware Adaptive**: Seamless deployment from Mac M2 (8GB) to Linux GPU servers
 - **📊 Monitoring**: Weights & Biases, TensorBoard integration
-- **🎯 Easy to Use**: Simple CLI tools and web interface
+- **🎯 Easy to Use**: Simple CLI tools and enhanced web interface
+
+### 🆕 New Enhanced Web Interface
+
+- **📝 Quick Questions**: Pre-made question dropdown including "What is the fastest animal?", "How many Rs are there in strawberry?", and "If the Han dynasty Chinese fought the Romans, who would win?"
+- **🤖 Advanced Model Management**: Support for local files, Hugging Face models, and OpenAI API
+- **📁 File Upload System**: Browse and upload .pt, .pth, .bin, .safetensors model files directly
+- **⚙️ Real-time Controls**: Adjust temperature, top-p, max length, top-k parameters dynamically
+- **📱 Mobile Responsive**: Optimized interface that works perfectly on all devices
+- **🎨 Professional Design**: Clean, modern interface with Purdue branding
 
 ## 🚀 Quick Start
 
@@ -21,7 +30,7 @@ A production-ready, modular transformer-based language model implementation base
 
 ```bash
 # Clone the repository
-git clone https://github.com/richardsprague/minillm.git
+git clone https://github.com/nsprague/minillm.git
 cd minillm
 
 # Install in development mode
@@ -45,14 +54,21 @@ llm-chat
 llm-chat --temperature 0.8 --max-length 150 --compile
 ```
 
-### Web Interface
+### Enhanced Web Interface
 
 ```bash
-# Start web server
+# Start web server with all features
 llm-serve --port 8000
 
 # Open http://localhost:8000 in your browser
 ```
+
+**Features available in the web interface:**
+- **Quick Questions**: Select from pre-made questions or type your own
+- **Model Selection**: Choose from local, Hugging Face, or OpenAI models
+- **File Upload**: Upload your own model files (.pt, .pth, .bin, .safetensors)
+- **Real-time Parameters**: Adjust temperature, top-p, max length, top-k
+- **Mobile Responsive**: Works seamlessly on desktop, tablet, and mobile
 
 ## 📋 Model Card
 
@@ -193,11 +209,13 @@ The web interface in `web/static/` can be deployed to Netlify:
 
 ### Latest Updates (Jan 2025)
 
-- ✅ **Fixed tensor dimension error**: Resolved critical "Tensors must have same number of dimensions" issue
-- ✅ **Improved model compatibility**: Now uses original TransformerModel for 100% checkpoint compatibility  
-- ✅ **Enhanced generation quality**: Fixed garbled output by matching original generation logic
-- ✅ **Web interface improvements**: Added Purdue logo and resolved 404 errors
-- ✅ **Performance optimizations**: Faster model loading and better memory usage
+- ✅ **Enhanced Chat Interface**: Added quick questions dropdown with pre-made prompts
+- ✅ **Advanced Model Management**: Support for local files, Hugging Face, and OpenAI models  
+- ✅ **File Upload System**: Browse and upload .pt, .pth, .bin, .safetensors model files
+- ✅ **Real-time Parameter Controls**: Adjust temperature, top-p, max length, top-k dynamically
+- ✅ **Mobile-Responsive Design**: Optimized interface for desktop and mobile devices
+- ✅ **Fixed tensor dimension error**: Resolved critical generation compatibility issues
+- ✅ **Improved model compatibility**: 100% checkpoint compatibility with original architecture
 
 ### Common Issues
 
@@ -286,9 +304,9 @@ If you use MinillM in your research or projects, please cite:
 
 ```bibtex
 @software{minillm2025,
-  author = {Richard Sprague},
+  author = {Nathan Sprague},
   title = {MinillM: A Production-Ready Transformer Language Model},
-  url = {https://github.com/richardsprague/minillm},
+  url = {https://github.com/nsprague/minillm},
   year = {2025}
 }
 ```

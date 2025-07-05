@@ -7,11 +7,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This is a production-ready transformer-based language model implementation based on LLaMA architecture. The model is pretrained on Fineweb-edu (~15B tokens) and BAAI/CCI4.0-M2-CoT-v1 (~2B tokens), then finetuned on various QA datasets. The current best model has 505M parameters with chain-of-thought reasoning capabilities.
 
 **Recent Major Updates (Jan 2025):**
+- Enhanced chat interface with quick questions dropdown
+- Advanced model management supporting local files, Hugging Face, and OpenAI models
+- File upload system for .pt, .pth, .bin, .safetensors model files
+- Real-time parameter controls (temperature, top-p, max length, top-k)
+- Mobile-responsive design optimized for all devices
 - Fixed critical tensor dimension errors in generation
 - Improved model compatibility with original checkpoint
-- Enhanced web interface with working generation
-- Added comprehensive configuration system
-- Resolved garbled output issues
 
 ## Common Commands
 
@@ -32,10 +34,10 @@ pip install -r requirements.txt
 
 ### Running the Model
 ```bash
-# Run interactive chat (new modular CLI)
+# Run interactive chat (CLI)
 llm-chat
 
-# Start web server
+# Start enhanced web server with all features
 llm-serve --port 8000
 
 # Legacy chat interface  
@@ -43,6 +45,17 @@ python chat_transformer.py
 
 # Finetune on custom dataset
 python finetune_llama.py
+```
+
+### Enhanced Web Interface Features
+```bash
+# Access the web interface at http://localhost:8000
+# Features include:
+# - Quick questions dropdown with pre-made prompts
+# - Model selection (local, Hugging Face, OpenAI)
+# - File upload for model files (.pt, .pth, .bin, .safetensors)
+# - Real-time parameter adjustment (temperature, top-p, max length, top-k)
+# - Mobile-responsive design
 ```
 
 ### VS Code Tasks

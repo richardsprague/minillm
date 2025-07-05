@@ -9,19 +9,32 @@ from typing import List, Dict, Optional, AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import uvicorn
-import torch
+try:
+    import torch
+    HAS_TORCH = True
+except ImportError:
+    HAS_TORCH = False
 
 from .config import Config
-from .models import TransformerModel
-from .tokenizer import TokenizerManager
-from .generation import TextGenerator
-from .utils import setup_device, setup_logging, get_model_info
+if HAS_TORCH:
+    try:
+        from .models import TransformerModel
+        from .tokenizer import TokenizerManager
+        from .generation import TextGenerator
+        from .model_loader import ModelManager
+        from .utils import setup_device, setup_logging, get_model_info
+        HAS_MODELS = True
+    except ImportError as e:
+        print(f"Warning: Some model modules not available: {e}")
+        HAS_MODELS = False
+else:
+    HAS_MODELS = False
 
 
 # Global model state
@@ -30,6 +43,7 @@ model_state = {
     'tokenizer': None,
     'generator': None,
     'config': None,
+    'model_manager': None,
     'loading': False
 }
 
@@ -74,6 +88,31 @@ class ModelInfoResponse(BaseModel):
     device: str
 
 
+class ModelSwitchRequest(BaseModel):
+    """Model switch request."""
+    model_name: str
+
+
+class ModelSwitchResponse(BaseModel):
+    """Model switch response."""
+    success: bool
+    message: str
+    model_name: Optional[str] = None
+
+
+class AvailableModelsResponse(BaseModel):
+    """Available models response."""
+    models: List[Dict[str, str]]
+
+
+class CurrentModelResponse(BaseModel):
+    """Current model response."""
+    name: str
+    type: str
+    loaded: bool
+    description: str
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage application lifespan events."""
@@ -108,56 +147,42 @@ if web_static_path.exists():
 
 
 def load_model(config: Config) -> None:
-    """Load model and tokenizer."""
+    """Load model and tokenizer using the new model manager."""
     if model_state['loading']:
         return
     
     model_state['loading'] = True
     
     try:
-        print("Loading tokenizer...")
-        tokenizer = TokenizerManager(config.paths, config.tokens)
+        if not HAS_MODELS:
+            print("Warning: Model loading dependencies not available")
+            model_state.update({
+                'model': None,
+                'tokenizer': None,
+                'generator': None,
+                'model_manager': None,
+                'config': config,
+                'loading': False
+            })
+            return
         
-        print("Loading model...")
-        device = setup_device(config.compute.device)
+        print("Initializing model manager...")
+        model_manager = ModelManager(config)
         
-        # Use original model directly for maximum compatibility
-        import sys
-        import os
-        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        from transformer_model_llama_june2025 import TransformerModel as OriginalTransformerModel
+        print(f"Loading model: {config.model_source.name}")
+        model, tokenizer = model_manager.load_model(config.model_source)
         
-        model = OriginalTransformerModel(
-            ntokens=config.model.vocab_size,
-            max_seq_len=config.model.max_seq_len,
-            emsize=-1,
-            nhead=config.model.n_heads,
-            nlayers=config.model.n_layers,
-            ffn_dim=config.model.ffn_dim,
-            dim=config.model.dim,
-            batch_size=config.model.max_batch_size,
-            device=str(device)
-        ).to(device)
-        
-        model.eval()
-        
-        # Load state dict
-        state_dict = torch.load(config.paths.model_file, map_location=device, weights_only=True)
-        model.load_state_dict(state_dict, strict=False)
-        
-        # Apply optimizations
-        if config.performance.compile_model:
-            print("Compiling model...")
-            model.compile_model()
-        
-        print("Initializing generator...")
-        generator = TextGenerator(model, tokenizer, config.generation)
+        # Create generator for local models
+        generator = None
+        if config.model_source.type == "local":
+            generator = TextGenerator(model, tokenizer, config.generation)
         
         # Update global state
         model_state.update({
             'model': model,
             'tokenizer': tokenizer,
             'generator': generator,
+            'model_manager': model_manager,
             'config': config,
             'loading': False
         })
@@ -224,7 +249,7 @@ async def get_model_info():
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     """Chat endpoint for non-streaming responses."""
-    if model_state['generator'] is None:
+    if model_state['model_manager'] is None:
         raise HTTPException(status_code=503, detail="Model not loaded")
     
     if request.stream:
@@ -241,20 +266,44 @@ async def chat(request: ChatRequest):
             for msg in request.messages
         ]
         
-        # Generate response
+        # Generate response using model manager
         start_time = time.time()
-        response = model_state['generator'].generate_response(
-            conversation,
-            max_length=request.max_length,
-            temperature=request.temperature,
-            top_p=request.top_p,
-            top_k=request.top_k
-        )
+        
+        # For local models, use the existing generator
+        if model_state['config'].model_source.type == "local" and model_state['generator']:
+            response = model_state['generator'].generate_response(
+                conversation,
+                max_length=request.max_length,
+                temperature=request.temperature,
+                top_p=request.top_p,
+                top_k=request.top_k
+            )
+        else:
+            # For other models, use the model manager
+            # Convert conversation to simple prompt
+            prompt = conversation[-1]['content'] if conversation else ""
+            response = model_state['model_manager'].generate(
+                prompt,
+                max_length=request.max_length,
+                temperature=request.temperature,
+                top_p=request.top_p,
+                top_k=request.top_k
+            )
+        
         generation_time = time.time() - start_time
         
-        # Calculate usage statistics
-        input_tokens = len(model_state['tokenizer'].encode_conversation(conversation))
-        output_tokens = len(model_state['tokenizer'].encode(response))
+        # Calculate usage statistics (simplified for non-local models)
+        try:
+            if model_state['tokenizer'] and hasattr(model_state['tokenizer'], 'encode_conversation'):
+                input_tokens = len(model_state['tokenizer'].encode_conversation(conversation))
+                output_tokens = len(model_state['tokenizer'].encode(response))
+            else:
+                # Rough estimation for other models
+                input_tokens = len(conversation[-1]['content'].split()) if conversation else 0
+                output_tokens = len(response.split())
+        except:
+            input_tokens = len(conversation[-1]['content'].split()) if conversation else 0
+            output_tokens = len(response.split())
         
         return ChatResponse(
             response=response,
@@ -265,7 +314,7 @@ async def chat(request: ChatRequest):
                 'generation_time_ms': int(generation_time * 1000)
             },
             model_info={
-                'model': 'MinillM',
+                'model': model_state['config'].model_source.name,
                 'version': '0.1.0'
             }
         )
@@ -352,6 +401,179 @@ async def generate_text(
         raise HTTPException(status_code=500, detail=f"Generation failed: {e}")
 
 
+@app.get("/models/available")
+async def get_available_models():
+    """Get list of available models."""
+    if not HAS_MODELS:
+        # Return a basic model list when models aren't available
+        return [
+            {"name": "Demo Mode", "type": "demo", "description": "Demo mode - model dependencies not available"}
+        ]
+    
+    if model_state['model_manager'] is None:
+        # Return available models from config if manager isn't initialized yet
+        if model_state['config'] and hasattr(model_state['config'], 'available_models'):
+            return [
+                {
+                    "name": model.name,
+                    "type": model.type,
+                    "description": f"{model.type.title()} model: {model.name}"
+                }
+                for model in model_state['config'].available_models
+            ]
+        raise HTTPException(status_code=503, detail="Model manager not initialized")
+    
+    try:
+        models = model_state['model_manager'].get_available_models()
+        return models
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get available models: {e}")
+
+
+@app.get("/models/current", response_model=CurrentModelResponse)
+async def get_current_model():
+    """Get information about the current model."""
+    if not HAS_MODELS:
+        return CurrentModelResponse(
+            name="Demo Mode",
+            type="demo",
+            loaded=False,
+            description="Demo mode - model dependencies not available"
+        )
+    
+    if model_state['model_manager'] is None:
+        # Return current model from config if manager isn't initialized yet
+        if model_state['config'] and hasattr(model_state['config'], 'model_source'):
+            return CurrentModelResponse(
+                name=model_state['config'].model_source.name,
+                type=model_state['config'].model_source.type,
+                loaded=False,
+                description=f"{model_state['config'].model_source.type.title()} model: {model_state['config'].model_source.name} (not loaded)"
+            )
+        raise HTTPException(status_code=503, detail="Model manager not initialized")
+    
+    try:
+        model_info = model_state['model_manager'].get_current_model_info()
+        return CurrentModelResponse(
+            name=model_info['name'],
+            type=model_info['type'],
+            loaded=model_info['loaded'],
+            description=f"{model_info['type'].title()} model: {model_info['name']}"
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get current model info: {e}")
+
+
+@app.post("/models/switch", response_model=ModelSwitchResponse)
+async def switch_model(request: ModelSwitchRequest):
+    """Switch to a different model."""
+    if model_state['model_manager'] is None:
+        raise HTTPException(status_code=503, detail="Model manager not initialized")
+    
+    try:
+        success = model_state['model_manager'].switch_model(request.model_name)
+        
+        if success:
+            # Update global state
+            model_state.update({
+                'model': model_state['model_manager'].current_model,
+                'tokenizer': model_state['model_manager'].current_tokenizer,
+                'generator': None  # Will be recreated if needed
+            })
+            
+            # Create generator for local models
+            if model_state['config'].model_source.type == "local":
+                from .generation import TextGenerator
+                model_state['generator'] = TextGenerator(
+                    model_state['model'], 
+                    model_state['tokenizer'], 
+                    model_state['config'].generation
+                )
+            
+            return ModelSwitchResponse(
+                success=True,
+                message=f"Successfully switched to {request.model_name}",
+                model_name=request.model_name
+            )
+        else:
+            return ModelSwitchResponse(
+                success=False,
+                message=f"Failed to switch to {request.model_name}"
+            )
+    except Exception as e:
+        return ModelSwitchResponse(
+            success=False,
+            message=f"Error switching model: {e}"
+        )
+
+
+@app.post("/models/upload")
+async def upload_model(model_file: UploadFile = File(...)):
+    """Upload and load a local model file."""
+    if not HAS_MODELS:
+        return {"success": False, "message": "Model loading dependencies not available"}
+    
+    try:
+        # Validate file type
+        allowed_extensions = ['.pt', '.pth', '.bin', '.safetensors']
+        if not any(model_file.filename.endswith(ext) for ext in allowed_extensions):
+            return {"success": False, "message": "Invalid file type. Supported: .pt, .pth, .bin, .safetensors"}
+        
+        # Create uploads directory
+        uploads_dir = Path("uploads")
+        uploads_dir.mkdir(exist_ok=True)
+        
+        # Save uploaded file
+        file_path = uploads_dir / model_file.filename
+        with open(file_path, "wb") as buffer:
+            content = await model_file.read()
+            buffer.write(content)
+        
+        # Try to load the model
+        if model_state['model_manager'] is None:
+            return {"success": False, "message": "Model manager not initialized"}
+        
+        # Create a new model source config for the uploaded file
+        from .config import ModelSourceConfig
+        new_model_source = ModelSourceConfig(
+            type="local",
+            name=model_file.filename,
+            path=str(file_path)
+        )
+        
+        # Try to load the model
+        success = model_state['model_manager'].switch_model_source(new_model_source)
+        
+        if success:
+            # Update global state
+            model_state.update({
+                'model': model_state['model_manager'].current_model,
+                'tokenizer': model_state['model_manager'].current_tokenizer,
+                'generator': None
+            })
+            
+            # Create generator for local models
+            if model_state['config'] and HAS_MODELS:
+                try:
+                    from .generation import TextGenerator
+                    model_state['generator'] = TextGenerator(
+                        model_state['model'], 
+                        model_state['tokenizer'], 
+                        model_state['config'].generation
+                    )
+                except Exception as e:
+                    print(f"Warning: Could not create generator: {e}")
+            
+            return {"success": True, "message": f"Successfully loaded {model_file.filename}"}
+        else:
+            # Clean up file if loading failed
+            file_path.unlink(missing_ok=True)
+            return {"success": False, "message": "Failed to load the uploaded model"}
+            
+    except Exception as e:
+        return {"success": False, "message": f"Error uploading model: {str(e)}"}
+
+
 @app.post("/model/reload")
 async def reload_model(background_tasks: BackgroundTasks):
     """Reload the model (useful for development)."""
@@ -362,7 +584,8 @@ async def reload_model(background_tasks: BackgroundTasks):
     model_state.update({
         'model': None,
         'tokenizer': None,
-        'generator': None
+        'generator': None,
+        'model_manager': None
     })
     
     # Reload model in background

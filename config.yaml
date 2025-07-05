@@ -14,12 +14,43 @@ model:
   rope_theta: 50000          # RoPE base frequency
   max_batch_size: 1          # Maximum batch size for KV cache
 
-# Model file paths
+# Current model source
+model_source:
+  type: "local"
+  name: "MinillM-505M"
+  path: "../model505m_july3_2025/model505m_july3_2025.pt"
+
+# Model file paths (for local models)
 paths:
   model_file: "../model505m_july3_2025/model505m_july3_2025.pt"
   tokenizer_dir: "../model505m_july3_2025/my_tokenizer_50k_2025"
   vocab_file: "tokenizer_50k_2025-vocab.json"
   merges_file: "tokenizer_50k_2025-merges.txt"
+
+# Available models for selection
+available_models:
+  - type: "local"
+    name: "MinillM-505M"
+    path: "../model505m_july3_2025/model505m_july3_2025.pt"
+  - type: "huggingface"
+    name: "microsoft/DialoGPT-small"
+    trust_remote_code: false
+  - type: "huggingface"
+    name: "microsoft/DialoGPT-medium"
+    trust_remote_code: false
+  - type: "huggingface"
+    name: "EleutherAI/gpt-neo-125M"
+    trust_remote_code: false
+  - type: "huggingface"
+    name: "EleutherAI/gpt-neo-1.3B"
+    trust_remote_code: false
+  - type: "huggingface"
+    name: "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+    trust_remote_code: false
+  - type: "openai"
+    name: "gpt-3.5-turbo"
+  - type: "openai"
+    name: "gpt-4"
 
 # Special tokens
 tokens:

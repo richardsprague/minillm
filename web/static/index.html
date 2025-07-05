@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MinillM Chat</title>
+    <title>Mini LLM Chat</title>
     <style>
         * {
             margin: 0;
@@ -26,10 +26,10 @@
             border-radius: 16px;
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
             width: 100%;
-            max-width: 800px;
+            max-width: 1000px;
             height: 600px;
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
             overflow: hidden;
         }
 
@@ -98,6 +98,38 @@
             padding: 20px;
             background: white;
             border-top: 1px solid #e1e5e9;
+        }
+
+        .quick-questions {
+            margin-bottom: 15px;
+        }
+
+        .quick-questions-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: #495057;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .quick-questions-select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        .quick-questions-select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .quick-questions-select:hover {
+            border-color: #667eea;
         }
 
         .chat-input-form {
@@ -209,58 +241,286 @@
             box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.3);
         }
 
+        .main-chat {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .settings-panel {
+            width: 300px;
+            background: #f8f9fa;
+            border-left: 1px solid #e1e5e9;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .settings-panel h3 {
+            margin-bottom: 15px;
+            color: #2c3e50;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .setting-group {
+            margin-bottom: 20px;
+        }
+
+        .setting-label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #495057;
+            font-size: 14px;
+        }
+
+        .setting-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #e1e5e9;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        .setting-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .setting-range {
+            width: 100%;
+            margin: 10px 0;
+            -webkit-appearance: none;
+            height: 4px;
+            border-radius: 2px;
+            background: #e1e5e9;
+            outline: none;
+        }
+
+        .setting-range::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+        }
+
+        .setting-range::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            border: none;
+        }
+
+        .setting-value {
+            display: inline-block;
+            margin-left: 10px;
+            font-weight: 500;
+            color: #667eea;
+            font-size: 14px;
+        }
+
+        .toggle-settings {
+            display: none;
+            position: absolute;
+            top: 20px;
+            right: 60px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .toggle-settings:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .reset-conversation {
+            width: 100%;
+            padding: 10px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        .reset-conversation:hover {
+            background: #c82333;
+        }
+
         @media (max-width: 768px) {
             .chat-container {
                 height: 100vh;
                 border-radius: 0;
+                flex-direction: column;
+            }
+            
+            .settings-panel {
+                width: 100%;
+                border-left: none;
+                border-top: 1px solid #e1e5e9;
+                height: 200px;
+                display: none;
+            }
+            
+            .settings-panel.mobile-open {
+                display: block;
+            }
+            
+            .toggle-settings {
+                display: block;
+            }
+            
+            .main-chat {
+                flex: 1;
+                min-height: 0;
             }
             
             .message-content {
                 max-width: 85%;
+            }
+            
+            .quick-questions {
+                margin-bottom: 10px;
+            }
+            
+            .quick-questions-label {
+                font-size: 13px;
+            }
+            
+            .quick-questions-select {
+                padding: 8px 10px;
+                font-size: 13px;
             }
         }
     </style>
 </head>
 <body>
     <div class="chat-container">
-        <div class="chat-header">
-            <img src="/static/purdue-logo-p.png" alt="Purdue University" class="purdue-logo">
-            <h1>MinillM Chat</h1>
-            <p>Powered by a 505M parameter transformer model</p>
-            <div class="status-indicator" id="statusIndicator"></div>
-        </div>
-        
-        <div class="chat-messages" id="chatMessages">
-            <div class="message assistant">
+        <div class="main-chat">
+            <div class="chat-header">
+                <img src="/static/purdue-logo-p.png" alt="Purdue University" class="purdue-logo">
+                <h1>Mini LLM Chat</h1>
+                <p>Powered by a 505M parameter transformer model</p>
+                <button class="toggle-settings" id="toggleSettings">Settings</button>
+                <div class="status-indicator" id="statusIndicator"></div>
+            </div>
+            
+            <div class="chat-messages" id="chatMessages">
+                <div class="message assistant">
+                    <div class="message-content">
+                        Hello! I'm Mini LLM, a language model based on LLaMA architecture. How can I help you today?
+                    </div>
+                </div>
+            </div>
+            
+            <div class="typing-indicator" id="typingIndicator">
                 <div class="message-content">
-                    Hello! I'm MinillM, a language model based on LLaMA architecture. How can I help you today?
+                    <div class="typing-dots">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                    </div>
                 </div>
+            </div>
+            
+            <div class="chat-input-container">
+                <div class="quick-questions">
+                    <label class="quick-questions-label">Quick Questions:</label>
+                    <select class="quick-questions-select" id="quickQuestions">
+                        <option value="">Select a pre-made question...</option>
+                        <option value="What is the fastest animal?">What is the fastest animal?</option>
+                        <option value="How many Rs are there in strawberry?">How many Rs are there in strawberry?</option>
+                        <option value="If the Han dynasty Chinese fought the Romans, who would win?">If the Han dynasty Chinese fought the Romans, who would win?</option>
+                        <option value="What is the capital of France?">What is the capital of France?</option>
+                        <option value="Explain quantum computing in simple terms">Explain quantum computing in simple terms</option>
+                        <option value="What are the benefits of renewable energy?">What are the benefits of renewable energy?</option>
+                        <option value="How does photosynthesis work?">How does photosynthesis work?</option>
+                        <option value="What is the difference between AI and machine learning?">What is the difference between AI and machine learning?</option>
+                        <option value="Tell me a joke">Tell me a joke</option>
+                        <option value="What is the meaning of life?">What is the meaning of life?</option>
+                    </select>
+                </div>
+                <form class="chat-input-form" id="chatForm">
+                    <input 
+                        type="text" 
+                        class="chat-input" 
+                        id="chatInput" 
+                        placeholder="Type your message or select a question above..."
+                        autocomplete="off"
+                    >
+                    <button type="submit" class="send-button" id="sendButton">
+                        Send
+                    </button>
+                </form>
             </div>
         </div>
         
-        <div class="typing-indicator" id="typingIndicator">
-            <div class="message-content">
-                <div class="typing-dots">
-                    <div class="typing-dot"></div>
-                    <div class="typing-dot"></div>
-                    <div class="typing-dot"></div>
-                </div>
+        <div class="settings-panel" id="settingsPanel">
+            <h3>Model Selection</h3>
+            
+            <div class="setting-group">
+                <label class="setting-label">Active Model</label>
+                <select class="setting-input" id="modelSelect">
+                    <option value="">Loading models...</option>
+                    <option value="__FILE_SELECT__">📁 Browse for local model file...</option>
+                </select>
+                <p style="font-size: 12px; color: #6c757d; margin-top: 5px;" id="modelDescription">Select a model to use for generation</p>
             </div>
-        </div>
-        
-        <div class="chat-input-container">
-            <form class="chat-input-form" id="chatForm">
-                <input 
-                    type="text" 
-                    class="chat-input" 
-                    id="chatInput" 
-                    placeholder="Type your message..."
-                    autocomplete="off"
-                >
-                <button type="submit" class="send-button" id="sendButton">
-                    Send
-                </button>
-            </form>
+            
+            <div class="setting-group" id="fileSelectGroup" style="display: none;">
+                <label class="setting-label">Select Model File</label>
+                <input type="file" class="setting-input" id="modelFileInput" accept=".pt,.pth,.bin,.safetensors" style="padding: 8px;">
+                <p style="font-size: 12px; color: #6c757d; margin-top: 5px;">Choose a local model file (.pt, .pth, .bin, .safetensors)</p>
+                <button class="setting-input" id="loadModelButton" style="margin-top: 8px; background: #667eea; color: white; border: none; cursor: pointer; padding: 10px;">Load Selected Model</button>
+            </div>
+            
+            <h3 style="margin-top: 25px;">Generation Settings</h3>
+            
+            <div class="setting-group">
+                <label class="setting-label">Temperature</label>
+                <input type="range" class="setting-range" id="temperatureRange" min="0.1" max="2.0" step="0.1" value="0.7">
+                <span class="setting-value" id="temperatureValue">0.7</span>
+                <p style="font-size: 12px; color: #6c757d; margin-top: 5px;">Controls randomness. Higher = more creative, lower = more focused</p>
+            </div>
+            
+            <div class="setting-group">
+                <label class="setting-label">Top P</label>
+                <input type="range" class="setting-range" id="topPRange" min="0.1" max="1.0" step="0.05" value="0.9">
+                <span class="setting-value" id="topPValue">0.9</span>
+                <p style="font-size: 12px; color: #6c757d; margin-top: 5px;">Nucleus sampling. Controls diversity of word choices</p>
+            </div>
+            
+            <div class="setting-group">
+                <label class="setting-label">Max Length</label>
+                <input type="range" class="setting-range" id="maxLengthRange" min="10" max="500" step="10" value="150">
+                <span class="setting-value" id="maxLengthValue">150</span>
+                <p style="font-size: 12px; color: #6c757d; margin-top: 5px;">Maximum response length in tokens</p>
+            </div>
+            
+            <div class="setting-group">
+                <label class="setting-label">Top K</label>
+                <input type="range" class="setting-range" id="topKRange" min="1" max="100" step="1" value="50">
+                <span class="setting-value" id="topKValue">50</span>
+                <p style="font-size: 12px; color: #6c757d; margin-top: 5px;">Top-k sampling. Limits word choices to top k most likely</p>
+            </div>
+            
+            <div class="setting-group">
+                <button class="reset-conversation" id="resetConversation">Reset Conversation</button>
+            </div>
         </div>
     </div>
 
@@ -273,8 +533,122 @@
         const sendButton = document.getElementById('sendButton');
         const typingIndicator = document.getElementById('typingIndicator');
         const statusIndicator = document.getElementById('statusIndicator');
+        const quickQuestions = document.getElementById('quickQuestions');
+        
+        // Settings elements
+        const settingsPanel = document.getElementById('settingsPanel');
+        const toggleSettings = document.getElementById('toggleSettings');
+        const resetConversation = document.getElementById('resetConversation');
+        
+        // Model selection
+        const modelSelect = document.getElementById('modelSelect');
+        const modelDescription = document.getElementById('modelDescription');
+        const fileSelectGroup = document.getElementById('fileSelectGroup');
+        const modelFileInput = document.getElementById('modelFileInput');
+        const loadModelButton = document.getElementById('loadModelButton');
+        
+        // Parameter controls
+        const temperatureRange = document.getElementById('temperatureRange');
+        const temperatureValue = document.getElementById('temperatureValue');
+        const topPRange = document.getElementById('topPRange');
+        const topPValue = document.getElementById('topPValue');
+        const maxLengthRange = document.getElementById('maxLengthRange');
+        const maxLengthValue = document.getElementById('maxLengthValue');
+        const topKRange = document.getElementById('topKRange');
+        const topKValue = document.getElementById('topKValue');
 
         let conversation = [];
+        let availableModels = [];
+        let currentModel = null;
+
+        // Load available models
+        async function loadAvailableModels() {
+            try {
+                const response = await fetch(`${API_BASE}/models/available`);
+                if (response.ok) {
+                    availableModels = await response.json();
+                    updateModelSelect();
+                }
+            } catch (error) {
+                console.error('Failed to load available models:', error);
+            }
+        }
+
+        // Update model select dropdown
+        function updateModelSelect() {
+            modelSelect.innerHTML = '';
+            
+            availableModels.forEach(model => {
+                const option = document.createElement('option');
+                option.value = model.name;
+                option.textContent = `${model.name} (${model.type})`;
+                modelSelect.appendChild(option);
+            });
+            
+            // Set current model if available
+            if (currentModel) {
+                modelSelect.value = currentModel.name;
+                updateModelDescription(currentModel);
+            }
+        }
+
+        // Update model description
+        function updateModelDescription(model) {
+            if (model) {
+                modelDescription.textContent = model.description || `${model.type} model: ${model.name}`;
+            } else {
+                modelDescription.textContent = 'Select a model to use for generation';
+            }
+        }
+
+        // Switch model
+        async function switchModel(modelName) {
+            try {
+                setTyping(true);
+                const response = await fetch(`${API_BASE}/models/switch`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ model_name: modelName })
+                });
+                
+                setTyping(false);
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success) {
+                        currentModel = availableModels.find(m => m.name === modelName);
+                        updateModelDescription(currentModel);
+                        addMessage('assistant', `Switched to model: ${modelName}`);
+                    } else {
+                        showError(`Failed to switch model: ${result.message}`);
+                    }
+                } else {
+                    showError('Failed to switch model');
+                }
+            } catch (error) {
+                setTyping(false);
+                console.error('Error switching model:', error);
+                showError('Error switching model');
+            }
+        }
+
+        // Get current model info
+        async function getCurrentModelInfo() {
+            try {
+                const response = await fetch(`${API_BASE}/models/current`);
+                if (response.ok) {
+                    currentModel = await response.json();
+                    if (modelSelect.value !== currentModel.name) {
+                        modelSelect.value = currentModel.name;
+                    }
+                    updateModelDescription(currentModel);
+                }
+            } catch (error) {
+                console.error('Failed to get current model info:', error);
+            }
+        }
 
         // Check server status
         async function checkStatus() {
@@ -344,9 +718,10 @@
                     },
                     body: JSON.stringify({
                         messages: conversation,
-                        temperature: 0.7,
-                        top_p: 0.9,
-                        max_length: 150
+                        temperature: parseFloat(temperatureRange.value),
+                        top_p: parseFloat(topPRange.value),
+                        max_length: parseInt(maxLengthRange.value),
+                        top_k: parseInt(topKRange.value)
                     })
                 });
 
@@ -409,6 +784,175 @@
                 chatForm.dispatchEvent(new Event('submit'));
             }
         });
+        
+        // Settings panel functionality
+        function updateSettingValue(range, valueDisplay) {
+            valueDisplay.textContent = range.value;
+        }
+        
+        // Initialize setting displays and add event listeners
+        temperatureRange.addEventListener('input', () => updateSettingValue(temperatureRange, temperatureValue));
+        topPRange.addEventListener('input', () => updateSettingValue(topPRange, topPValue));
+        maxLengthRange.addEventListener('input', () => updateSettingValue(maxLengthRange, maxLengthValue));
+        topKRange.addEventListener('input', () => updateSettingValue(topKRange, topKValue));
+        
+        // Toggle settings panel on mobile
+        toggleSettings.addEventListener('click', () => {
+            settingsPanel.classList.toggle('mobile-open');
+        });
+        
+        // Reset conversation
+        resetConversation.addEventListener('click', () => {
+            if (confirm('Are you sure you want to reset the conversation?')) {
+                conversation = [];
+                chatMessages.innerHTML = `
+                    <div class="message assistant">
+                        <div class="message-content">
+                            Hello! I'm Mini LLM, a language model based on LLaMA architecture. How can I help you today?
+                        </div>
+                    </div>
+                `;
+            }
+        });
+        
+        // Save settings to localStorage
+        function saveSettings() {
+            const settings = {
+                temperature: temperatureRange.value,
+                topP: topPRange.value,
+                maxLength: maxLengthRange.value,
+                topK: topKRange.value
+            };
+            localStorage.setItem('minillm-settings', JSON.stringify(settings));
+        }
+        
+        // Load settings from localStorage
+        function loadSettings() {
+            const saved = localStorage.getItem('minillm-settings');
+            if (saved) {
+                const settings = JSON.parse(saved);
+                temperatureRange.value = settings.temperature || 0.7;
+                topPRange.value = settings.topP || 0.9;
+                maxLengthRange.value = settings.maxLength || 150;
+                topKRange.value = settings.topK || 50;
+                
+                // Update displays
+                updateSettingValue(temperatureRange, temperatureValue);
+                updateSettingValue(topPRange, topPValue);
+                updateSettingValue(maxLengthRange, maxLengthValue);
+                updateSettingValue(topKRange, topKValue);
+            }
+        }
+        
+        // Model selection event listener
+        modelSelect.addEventListener('change', async (e) => {
+            if (e.target.value === '__FILE_SELECT__') {
+                // Show file selection interface
+                fileSelectGroup.style.display = 'block';
+                modelDescription.textContent = 'Select a local model file to load';
+                // Reset select to previous value
+                if (currentModel) {
+                    e.target.value = currentModel.name;
+                } else {
+                    e.target.value = '';
+                }
+            } else if (e.target.value && e.target.value !== currentModel?.name) {
+                // Hide file selection if switching to predefined model
+                fileSelectGroup.style.display = 'none';
+                await switchModel(e.target.value);
+            }
+        });
+        
+        // File input handler
+        modelFileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                const fileName = e.target.files[0].name;
+                loadModelButton.textContent = `Load ${fileName}`;
+                loadModelButton.disabled = false;
+            } else {
+                loadModelButton.textContent = 'Load Selected Model';
+                loadModelButton.disabled = true;
+            }
+        });
+        
+        // Load model button handler
+        loadModelButton.addEventListener('click', async () => {
+            const file = modelFileInput.files[0];
+            if (!file) {
+                showError('Please select a model file first');
+                return;
+            }
+            
+            try {
+                setTyping(true);
+                
+                // Create FormData to upload the file
+                const formData = new FormData();
+                formData.append('model_file', file);
+                
+                const response = await fetch(`${API_BASE}/models/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                setTyping(false);
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success) {
+                        // Hide file selection
+                        fileSelectGroup.style.display = 'none';
+                        // Update current model info
+                        currentModel = {
+                            name: file.name,
+                            type: 'local',
+                            description: `Local model: ${file.name}`
+                        };
+                        updateModelDescription(currentModel);
+                        addMessage('assistant', `Successfully loaded model: ${file.name}`);
+                        
+                        // Add to available models if not already there
+                        if (!availableModels.find(m => m.name === file.name)) {
+                            availableModels.push(currentModel);
+                            updateModelSelect();
+                        }
+                        
+                        // Update select value
+                        modelSelect.value = file.name;
+                    } else {
+                        showError(`Failed to load model: ${result.message}`);
+                    }
+                } else {
+                    showError('Failed to upload model file');
+                }
+            } catch (error) {
+                setTyping(false);
+                console.error('Error uploading model:', error);
+                showError('Error uploading model file');
+            }
+        });
+        
+        // Save settings when changed
+        [temperatureRange, topPRange, maxLengthRange, topKRange].forEach(range => {
+            range.addEventListener('change', saveSettings);
+        });
+        
+        // Load settings on page load
+        loadSettings();
+        
+        // Quick questions dropdown handler
+        quickQuestions.addEventListener('change', (e) => {
+            if (e.target.value) {
+                chatInput.value = e.target.value;
+                chatInput.focus();
+                // Reset dropdown to placeholder
+                e.target.value = '';
+            }
+        });
+        
+        // Initialize models
+        loadAvailableModels();
+        getCurrentModelInfo();
     </script>
 </body>
 </html>

@@ -3,10 +3,40 @@ Configuration management for MinillM using Pydantic.
 Provides type-safe configuration loading and validation.
 """
 
-from typing import Optional, List, Literal
+from typing import Optional, List
+try:
+    from typing import Literal
+except ImportError:
+    try:
+        from typing_extensions import Literal
+    except ImportError:
+        # Fallback when neither typing.Literal nor typing_extensions is available
+        def Literal(*args):
+            return str
 from pathlib import Path
 import yaml
-from pydantic import BaseModel, Field, validator
+try:
+    from pydantic import BaseModel, Field, validator
+except ImportError:
+    # Fallback for when pydantic is not available
+    class BaseModel:
+        def __init__(self, **kwargs):
+            for key, value in kwargs.items():
+                setattr(self, key, value)
+        
+        @classmethod
+        def from_yaml(cls, config_path: str):
+            with open(config_path, 'r') as f:
+                config_dict = yaml.safe_load(f)
+            return cls(**config_dict)
+    
+    def Field(**kwargs):
+        return kwargs.get('default', None)
+    
+    def validator(*args, **kwargs):
+        def decorator(func):
+            return func
+        return decorator
 
 
 class ModelConfig(BaseModel):
@@ -48,23 +78,45 @@ class ModelConfig(BaseModel):
         return v
 
 
+class ModelSourceConfig(BaseModel):
+    """Model source configuration."""
+    
+    type: Literal["local", "huggingface", "openai"] = Field(default="local", description="Model source type")
+    name: str = Field(description="Model name or identifier")
+    path: Optional[str] = Field(default=None, description="Path to local model file")
+    api_key: Optional[str] = Field(default=None, description="API key for remote models")
+    api_base: Optional[str] = Field(default=None, description="API base URL for remote models")
+    trust_remote_code: bool = Field(default=False, description="Trust remote code for HF models")
+    
+    @validator('path')
+    def validate_local_path(cls, v, values):
+        """Ensure path is provided for local models."""
+        if values.get('type') == 'local' and not v:
+            raise ValueError("path is required for local models")
+        return v
+
+
 class PathsConfig(BaseModel):
     """File path configuration."""
     
-    model_file: str = Field(description="Path to model checkpoint file")
-    tokenizer_dir: str = Field(description="Directory containing tokenizer files")
+    model_file: Optional[str] = Field(default=None, description="Path to model checkpoint file (deprecated)")
+    tokenizer_dir: Optional[str] = Field(default=None, description="Directory containing tokenizer files")
     vocab_file: str = Field(default="tokenizer_50k_2025-vocab.json", description="Vocabulary file name")
     merges_file: str = Field(default="tokenizer_50k_2025-merges.txt", description="Merges file name")
     
     @property
     def vocab_path(self) -> str:
         """Full path to vocabulary file."""
-        return str(Path(self.tokenizer_dir) / self.vocab_file)
+        if self.tokenizer_dir:
+            return str(Path(self.tokenizer_dir) / self.vocab_file)
+        return self.vocab_file
     
     @property
     def merges_path(self) -> str:
         """Full path to merges file."""
-        return str(Path(self.tokenizer_dir) / self.merges_file)
+        if self.tokenizer_dir:
+            return str(Path(self.tokenizer_dir) / self.merges_file)
+        return self.merges_file
 
 
 class TokensConfig(BaseModel):
@@ -161,7 +213,8 @@ class Config(BaseModel):
     """Complete MinillM configuration."""
     
     model: ModelConfig = Field(default_factory=ModelConfig)
-    paths: PathsConfig
+    model_source: ModelSourceConfig
+    paths: PathsConfig = Field(default_factory=PathsConfig)
     tokens: TokensConfig = Field(default_factory=TokensConfig)
     training: TrainingConfig = Field(default_factory=TrainingConfig)
     generation: GenerationConfig = Field(default_factory=GenerationConfig)
@@ -170,6 +223,9 @@ class Config(BaseModel):
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     evaluation: EvaluationConfig = Field(default_factory=EvaluationConfig)
     server: ServerConfig = Field(default_factory=ServerConfig)
+    
+    # Available models configuration
+    available_models: List[ModelSourceConfig] = Field(default_factory=list, description="List of available models")
     
     @classmethod
     def from_yaml(cls, config_path: str) -> "Config":
