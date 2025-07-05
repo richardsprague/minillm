@@ -58,11 +58,12 @@ llm-serve --port 8000
 
 ### Model Details
 
-- **Architecture**: LLaMA-style decoder-only transformer
-- **Parameters**: 505M
+- **Architecture**: LLaMA-style decoder-only transformer with Grouped Query Attention
+- **Parameters**: 505M (1024 hidden dim, 24 layers, 16 heads, 4096 FFN dim)
 - **Context Length**: 128-4096 tokens (configurable)
 - **Vocabulary**: 50K BPE tokens
 - **Precision**: FP32/FP16/BF16 support
+- **Special Features**: Chain-of-thought reasoning with thinking tokens
 
 ### Training Data
 
@@ -107,14 +108,15 @@ All settings are managed through `config.yaml`:
 
 ```yaml
 model:
-  dim: 512                    # Hidden dimension
-  n_layers: 16               # Number of transformer layers
+  dim: 1024                  # Hidden dimension (actual model size)
+  n_layers: 24               # Number of transformer layers  
   n_heads: 16                # Number of attention heads
+  ffn_dim: 4096              # Feed-forward network dimension
   vocab_size: 50000          # Vocabulary size
 
 performance:
-  compile_model: true        # Enable torch.compile
-  use_quantization: false    # Enable INT8/INT4 quantization
+  compile_model: false       # torch.compile (disabled for compatibility)
+  use_quantization: false    # Enable INT8/INT4 quantization  
   use_flash_attention: false # Enable FlashAttention
 
 generation:
@@ -186,6 +188,30 @@ The web interface in `web/static/` can be deployed to Netlify:
 1. Update API endpoint in `index.html`
 2. Deploy the `web/static/` directory
 3. Configure your backend API URL
+
+## 🔧 Recent Fixes & Troubleshooting
+
+### Latest Updates (Jan 2025)
+
+- ✅ **Fixed tensor dimension error**: Resolved critical "Tensors must have same number of dimensions" issue
+- ✅ **Improved model compatibility**: Now uses original TransformerModel for 100% checkpoint compatibility  
+- ✅ **Enhanced generation quality**: Fixed garbled output by matching original generation logic
+- ✅ **Web interface improvements**: Added Purdue logo and resolved 404 errors
+- ✅ **Performance optimizations**: Faster model loading and better memory usage
+
+### Common Issues
+
+**Q: Getting "Tensors must have same number of dimensions" error?**  
+A: This has been fixed in the latest version. Update to the newest commit.
+
+**Q: Model generates garbled text?**  
+A: Ensure you're using the exact model checkpoint from the Google Drive link. The model architecture now matches the original exactly.
+
+**Q: Web interface shows 404 errors?**  
+A: Fixed in latest version with proper static file serving and favicon support.
+
+**Q: Slow model loading?**  
+A: The model now uses the original architecture for faster loading. Disable compilation if needed: `compile_model: false`
 
 ## 🛠️ Development
 

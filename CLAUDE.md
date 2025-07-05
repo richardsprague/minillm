@@ -4,7 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a transformer-based language model implementation based on LLaMA architecture. The model is pretrained on Fineweb-edu (~15B tokens) and BAAI/CCI4.0-M2-CoT-v1 (~2B tokens), then finetuned on various QA datasets. The current best model has 505M parameters.
+This is a production-ready transformer-based language model implementation based on LLaMA architecture. The model is pretrained on Fineweb-edu (~15B tokens) and BAAI/CCI4.0-M2-CoT-v1 (~2B tokens), then finetuned on various QA datasets. The current best model has 505M parameters with chain-of-thought reasoning capabilities.
+
+**Recent Major Updates (Jan 2025):**
+- Fixed critical tensor dimension errors in generation
+- Improved model compatibility with original checkpoint
+- Enhanced web interface with working generation
+- Added comprehensive configuration system
+- Resolved garbled output issues
 
 ## Common Commands
 
@@ -25,7 +32,13 @@ pip install -r requirements.txt
 
 ### Running the Model
 ```bash
-# Run interactive chat
+# Run interactive chat (new modular CLI)
+llm-chat
+
+# Start web server
+llm-serve --port 8000
+
+# Legacy chat interface  
 python chat_transformer.py
 
 # Finetune on custom dataset
@@ -64,13 +77,15 @@ tokenizer_name = "my_tokenizer_50k_2025"
 - `chat_transformer.py`: Inference and chat interface
 - `finetune_llama.py`: Training script and data loading
 
-### Model Configuration (ModelArgs)
-- **Hidden dimension**: 512 (configurable)
-- **FFN dimension**: 1536 (configurable)
-- **Layers**: 16 (configurable)
-- **Attention heads**: 16 (configurable)
+### Model Configuration (Actual Model Dimensions)
+- **Hidden dimension**: 1024 (actual model size)
+- **FFN dimension**: 4096 (actual model size)
+- **Layers**: 24 (actual model size)
+- **Attention heads**: 16 (actual model size)
 - **Vocabulary size**: 50,000 tokens
 - **Max sequence length**: 128-4096 (configurable)
+
+**Note**: The config.yaml has been updated to match the actual model dimensions for proper compatibility.
 
 ## Memory Management
 
@@ -126,3 +141,40 @@ Required packages in `requirements.txt`:
 - tokenizers
 - transformers
 - pandas
+- fastapi
+- uvicorn
+- pydantic
+- pyyaml
+
+**Note**: Use `pip install -e .` to install all dependencies automatically from pyproject.toml.
+
+## Troubleshooting
+
+### Common Issues and Fixes
+
+1. **Tensor Dimension Error** (`Tensors must have same number of dimensions: got 2 and 1`)
+   - **Status**: FIXED in latest version
+   - **Cause**: Tensor shape mismatch in generation loop
+   - **Fix**: Updated generation.py with proper tensor reshaping
+
+2. **Garbled Generation Output**
+   - **Status**: FIXED in latest version  
+   - **Cause**: Model architecture incompatibility with checkpoint
+   - **Fix**: Now uses original TransformerModel directly for 100% compatibility
+
+3. **Web Interface 404 Errors**
+   - **Status**: FIXED in latest version
+   - **Cause**: Missing static file serving and favicon
+   - **Fix**: Added proper StaticFiles mount and favicon route
+
+4. **Slow Model Loading**
+   - **Status**: IMPROVED in latest version
+   - **Cause**: Complex model wrapper causing delays
+   - **Fix**: Direct use of original model architecture
+
+### Model Compatibility Notes
+
+- The project now uses the original `transformer_model_llama_june2025.py` directly
+- This ensures 100% compatibility with existing checkpoint files
+- Generation logic matches the original chat_transformer.py behavior
+- Chain-of-thought reasoning works properly with think_start/think_end tokens
