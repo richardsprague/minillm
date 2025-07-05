@@ -1,0 +1,6 @@
+{
+    // Automatically use the Python interpreter from the virtual environment
+    "python.defaultInterpreterPath": ".venv/bin/python",
+    // Activate the virtual environment in new terminals
+    "python.terminal.activateEnvironment": true
+}

@@ -8,10 +8,7 @@ Here is the best model so far (505m parameters):
 https://drive.google.com/file/d/1CHAgimS47Y34nvUBBpugoSL1FfJ_KVB4/view?usp=sharing
 
 ## To run:
-1. Download the model from google drive.
-2. Download the code in this repository
-3. In chat_transformer.py, change the path of the model and tokenizer to where you saved the files
-4. Run chat_transformer.py
+See `gemini.md` for detailed setup and execution instructions.
 
 ## To finetune:
 1. Change path in the dataloader to the path of your dataset

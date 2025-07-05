@@ -1,0 +1,26 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Install dependencies",
+      "type": "shell",
+      "command": "python3 -m pip install -r requirements.txt",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Run Chat Transformer",
+      "type": "shell",
+      "command": "python chat_transformer.py",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "Finetune Model",
+      "type": "shell",
+      "command": "python finetune_llama.py",
+      "group": "test",
+      "problemMatcher": []
+    }
+  ]
+}

@@ -6,8 +6,8 @@ from tokenizers import ByteLevelBPETokenizer
 
 
 
-model_name = "model505m_july3_2025.pt"
-tokenizer_name = "my_tokenizer_50k_2025"
+model_name = "../model505m_july3_2025/model505m_july3_2025.pt"
+tokenizer_name = "../model505m_july3_2025/my_tokenizer_50k_2025"
 
 torch.manual_seed(0)
 
