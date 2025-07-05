@@ -9,7 +9,7 @@ import torch.nn.functional as F
 
 from .config import GenerationConfig
 from .tokenizer import TokenizerManager
-from .models import TransformerModel
+from .models import TransformerModel, LegacyTransformerModel
 
 
 class TextGenerator:
@@ -26,7 +26,7 @@ class TextGenerator:
     
     def __init__(
         self, 
-        model: TransformerModel, 
+        model, 
         tokenizer: TokenizerManager, 
         config: GenerationConfig
     ):
@@ -70,116 +70,75 @@ class TextGenerator:
         top_k = top_k or self.config.top_k
         repetition_penalty = repetition_penalty or self.config.repetition_penalty
         
-        # Encode conversation (matching original style exactly)
-        conversation_tokens = []
-        for i, msg in enumerate(conversation):
+        # Use simplified working generation approach
+        try:
+            # Get device from model
+            device = next(self.model.parameters()).device
+        except:
+            device = torch.device('cpu')
+        
+        # Extract user message from conversation (simplified for now)
+        user_message = ""
+        for msg in conversation:
             if msg['role'] == 'user':
-                # Encode user message and add question_end_token
-                user_tokens = self.tokenizer.encode(msg['content'], add_special_tokens=False)
-                conversation_tokens.extend(user_tokens)
-                conversation_tokens.append(self.tokenizer.question_end_token_id)
+                user_message = msg['content']
+                break
         
-        # Add think_start_token to begin generation (matching original behavior)
-        conversation_tokens.append(self.tokenizer.think_start_token_id)
+        if not user_message:
+            return ""
         
-        # Convert to tensor
-        tokens = torch.tensor([conversation_tokens], dtype=torch.long, device=next(self.model.parameters()).device)
+        # Encode exactly like the working original
+        encoded = self.tokenizer.tokenizer.encode(user_message)
+        tokens = encoded.ids + [self.tokenizer.question_end_token_id, self.tokenizer.think_start_token_id]
+        tokens_tensor = torch.tensor([tokens], dtype=torch.long).to(device)
         
-        # Clear model cache for new generation
+        # Clear cache and prefill
         self.model.clear_kv_cache()
-        
-        # Prefill the model with conversation context
         with torch.no_grad():
-            if tokens.shape[1] > 1:
-                # Process all but the last token for KV cache
-                _ = self.model(tokens[:, :-1], start_pos=0)
+            if tokens_tensor.shape[1] > 1:
+                self.model(tokens_tensor[:, :-1], start_pos=0)
         
-        # Generate response tokens (following original logic)
-        generated_tokens = []
-        current_pos = tokens.shape[1]
-        in_thinking = True  # Start in thinking mode
-        
-        # Track recent tokens for repetition penalty
-        recent_tokens = list(conversation_tokens[-50:]) if len(conversation_tokens) > 50 else list(conversation_tokens)
+        # Generate using working logic
+        generated = tokens_tensor
+        all_generated = []
         
         with torch.no_grad():
-            for step in range(max_length):
-                # Get logits for next token
-                logits = self.model(tokens[:, -1:], start_pos=current_pos)
-                next_token_logits = logits[0, -1, :] / temperature
+            for i in range(max_length):
+                outputs = self.model(generated[:, -1:], start_pos=generated.shape[1])
+                next_token_logits = outputs[0, :] / temperature
                 
-                # Apply repetition penalty
-                if repetition_penalty != 1.0 and recent_tokens:
-                    next_token_logits = self._apply_repetition_penalty(
-                        next_token_logits, recent_tokens, repetition_penalty
-                    )
-                
-                # Handle thinking mode logic (from original code)
-                if tokens[:, -1].item() == self.tokenizer.think_end_token_id:
-                    if in_thinking:
-                        in_thinking = False
-                if not in_thinking:
-                    next_token_logits[self.tokenizer.think_end_token_id] -= 1000
-                
-                # Handle newline repetition bug
-                newline_tokens = [208, 230, 15078, 19]  # Common newline token IDs
-                if (tokens.shape[1] > 1 and 
-                    tokens[:, -1].item() in newline_tokens and 
-                    tokens[:, -2].item() in newline_tokens):
-                    for n in newline_tokens:
-                        next_token_logits[n] -= 1000
-                
-                # Apply top-p filtering (matching original order)
+                # Apply top-p filtering like the working version
+                next_token_logits = next_token_logits.squeeze()
                 if top_p < 1.0:
-                    next_token_logits = self._top_p_filtering(next_token_logits, top_p)
-                
-                # Sample next token
-                if self.config.do_sample:
-                    probs = F.softmax(next_token_logits, dim=-1)
-                    next_token = torch.multinomial(probs, num_samples=1)
+                    filtered_logits = self._top_p_filtering(next_token_logits, top_p)
                 else:
-                    next_token = torch.argmax(next_token_logits, dim=-1, keepdim=True)
+                    filtered_logits = next_token_logits
                 
-                next_token_id = next_token.item()
+                probabilities = F.softmax(filtered_logits, dim=-1)
                 
-                # Check for end tokens
-                if next_token_id == self.tokenizer.answer_end_token_id:
+                if self.config.do_sample:
+                    next_token = torch.multinomial(probabilities, 1)
+                else:
+                    next_token = torch.argmax(probabilities, dim=-1, keepdim=True)
+                
+                generated = torch.cat((generated, next_token.unsqueeze(0)), dim=1)
+                all_generated.append(next_token.item())
+                
+                if next_token.item() == self.tokenizer.answer_end_token_id:
                     break
-                
-                # Add token to generation
-                generated_tokens.append(next_token_id)
-                recent_tokens.append(next_token_id)
-                
-                # Keep recent_tokens list manageable
-                if len(recent_tokens) > 100:
-                    recent_tokens = recent_tokens[-50:]
-                
-                # Update tokens tensor for next iteration
-                # Ensure next_token has the right shape [batch_size, 1]
-                next_token = next_token.view(tokens.shape[0], 1)
-                tokens = torch.cat([tokens, next_token], dim=-1)
-                current_pos += 1
-                
-                # Stream output if requested
-                if stream:
-                    token_text = self.tokenizer.decode([next_token_id], skip_special_tokens=True)
-                    print(token_text, end='', flush=True)
         
-        # Process generated tokens like the original code
-        if generated_tokens:
-            # Remove answer_end_token if present
-            if generated_tokens and generated_tokens[-1] == self.tokenizer.answer_end_token_id:
-                generated_tokens = generated_tokens[:-1]
-            
-            # Extract message after think_end_token if present
-            if self.tokenizer.think_end_token_id in generated_tokens:
-                think_end_idx = generated_tokens.index(self.tokenizer.think_end_token_id)
-                msg_tokens = generated_tokens[think_end_idx + 1:]
-            else:
-                msg_tokens = generated_tokens
-            
-            # Decode the message tokens
-            response = self.tokenizer.decode(msg_tokens, skip_special_tokens=True)
+        # Process generated tokens like the working version
+        if all_generated and all_generated[-1] == self.tokenizer.answer_end_token_id:
+            all_generated = all_generated[:-1]
+        
+        if self.tokenizer.think_end_token_id in all_generated:
+            think_idx = all_generated.index(self.tokenizer.think_end_token_id)
+            message_tokens = all_generated[think_idx + 1:]
+        else:
+            message_tokens = all_generated
+        
+        if message_tokens:
+            response = self.tokenizer.tokenizer.decode(message_tokens)
             return response.strip()
         else:
             return ""

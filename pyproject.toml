@@ -7,7 +7,7 @@ name = "minillm"
 version = "0.1.0"
 description = "Transformer-based language model implementation based on LLaMA architecture"
 authors = [
-    {name = "Richard Sprague", email = "richard@richardsprague.com"},
+    {name = "Nathan Sprague", email = "nspragu@purdue.edu"},
 ]
 readme = "README.md"
 license = {text = "MIT"}

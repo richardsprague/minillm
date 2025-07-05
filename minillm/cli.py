@@ -144,10 +144,28 @@ class ChatInterface:
         
         # Load model
         print("Loading model...")
-        self.model = TransformerModel.from_pretrained(
-            config.paths.model_file, 
-            config.model
+        import sys
+        import os
+        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        from transformer_model_llama_june2025 import TransformerModel as OriginalTransformerModel
+        
+        self.model = OriginalTransformerModel(
+            ntokens=config.model.vocab_size,
+            max_seq_len=config.model.max_seq_len,
+            emsize=-1,
+            nhead=config.model.n_heads,
+            nlayers=config.model.n_layers,
+            ffn_dim=config.model.ffn_dim,
+            dim=config.model.dim,
+            batch_size=config.model.max_batch_size,
+            device=str(self.device)
         ).to(self.device)
+        
+        self.model.eval()
+        
+        # Load state dict
+        state_dict = torch.load(config.paths.model_file, map_location=self.device, weights_only=True)
+        self.model.load_state_dict(state_dict, strict=False)
         
         # Apply optimizations
         self._apply_optimizations()

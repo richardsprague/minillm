@@ -178,11 +178,11 @@ class TransformerModel(nn.Module):
         return model
 
 
-# Legacy compatibility: TransformerModel with old interface
+# Legacy compatibility: Use original TransformerModel directly
 class LegacyTransformerModel(nn.Module):
     """
-    Legacy wrapper for the original TransformerModel interface.
-    Maintains backward compatibility while using the new modular architecture.
+    Legacy wrapper that uses the original TransformerModel implementation directly.
+    This ensures 100% compatibility with the original checkpoint.
     """
     
     def __init__(
@@ -199,20 +199,24 @@ class LegacyTransformerModel(nn.Module):
     ):
         super().__init__()
         
-        # Convert legacy parameters to new config
-        config = ModelConfig(
-            vocab_size=ntokens,
-            max_seq_len=max_seq_len,
-            dim=dim,
-            n_heads=nhead,
-            n_layers=nlayers,
-            ffn_dim=ffn_dim,
-            max_batch_size=batch_size
-        )
+        # Import and use the original model directly
+        import sys
+        import os
+        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        from transformer_model_llama_june2025 import TransformerModel as OriginalTransformerModel
         
-        # Create the new model
-        self.model = TransformerModel(config)
-        self.config = config
+        # Create the original model with exact parameters
+        self.model = OriginalTransformerModel(
+            ntokens=ntokens,
+            max_seq_len=max_seq_len,
+            emsize=emsize,
+            nhead=nhead,
+            nlayers=nlayers,
+            ffn_dim=ffn_dim,
+            dim=dim,
+            batch_size=batch_size,
+            device=device
+        )
     
     def forward(self, tokens: torch.Tensor, start_pos: int = 0) -> torch.Tensor:
         """Forward pass with legacy interface."""

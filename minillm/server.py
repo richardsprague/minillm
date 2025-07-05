@@ -15,6 +15,7 @@ from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import uvicorn
+import torch
 
 from .config import Config
 from .models import TransformerModel
@@ -119,7 +120,30 @@ def load_model(config: Config) -> None:
         
         print("Loading model...")
         device = setup_device(config.compute.device)
-        model = TransformerModel.from_pretrained(config.paths.model_file, config.model).to(device)
+        
+        # Use original model directly for maximum compatibility
+        import sys
+        import os
+        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        from transformer_model_llama_june2025 import TransformerModel as OriginalTransformerModel
+        
+        model = OriginalTransformerModel(
+            ntokens=config.model.vocab_size,
+            max_seq_len=config.model.max_seq_len,
+            emsize=-1,
+            nhead=config.model.n_heads,
+            nlayers=config.model.n_layers,
+            ffn_dim=config.model.ffn_dim,
+            dim=config.model.dim,
+            batch_size=config.model.max_batch_size,
+            device=str(device)
+        ).to(device)
+        
+        model.eval()
+        
+        # Load state dict
+        state_dict = torch.load(config.paths.model_file, map_location=device, weights_only=True)
+        model.load_state_dict(state_dict, strict=False)
         
         # Apply optimizations
         if config.performance.compile_model:
