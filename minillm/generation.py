@@ -145,6 +145,8 @@ class TextGenerator:
                     recent_tokens = recent_tokens[-50:]
                 
                 # Update tokens tensor for next iteration
+                # Ensure next_token has the right shape [batch_size, 1]
+                next_token = next_token.view(tokens.shape[0], 1)
                 tokens = torch.cat([tokens, next_token], dim=-1)
                 current_pos += 1
                 
@@ -167,11 +169,14 @@ class TextGenerator:
         penalty: float
     ) -> torch.Tensor:
         """Apply repetition penalty to logits."""
+        # Clone logits to avoid in-place modification issues
+        logits = logits.clone()
         for token_id in set(previous_tokens):
-            if logits[token_id] > 0:
-                logits[token_id] /= penalty
-            else:
-                logits[token_id] *= penalty
+            if token_id < logits.size(0):  # Check bounds
+                if logits[token_id] > 0:
+                    logits[token_id] = logits[token_id] / penalty
+                else:
+                    logits[token_id] = logits[token_id] * penalty
         return logits
     
     def _top_k_filtering(self, logits: torch.Tensor, top_k: int) -> torch.Tensor:
