@@ -7,10 +7,12 @@ import asyncio
 import time
 from typing import List, Dict, Optional, AsyncGenerator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import uvicorn
 
@@ -98,6 +100,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Setup static file serving
+web_static_path = Path(__file__).parent.parent / "web" / "static"
+if web_static_path.exists():
+    app.mount("/static", StaticFiles(directory=str(web_static_path)), name="static")
+
 
 def load_model(config: Config) -> None:
     """Load model and tokenizer."""
@@ -136,6 +143,28 @@ def load_model(config: Config) -> None:
     except Exception as e:
         model_state['loading'] = False
         raise RuntimeError(f"Failed to load model: {e}")
+
+
+@app.get("/")
+async def read_root():
+    """Serve the main web interface."""
+    web_static_path = Path(__file__).parent.parent / "web" / "static"
+    index_path = web_static_path / "index.html"
+    if index_path.exists():
+        return FileResponse(str(index_path))
+    else:
+        return {"message": "MinillM API is running. Web interface not found."}
+
+
+@app.get("/favicon.ico")
+async def favicon():
+    """Serve favicon."""
+    web_static_path = Path(__file__).parent.parent / "web" / "static"
+    favicon_path = web_static_path / "favicon.ico"
+    if favicon_path.exists():
+        return FileResponse(str(favicon_path))
+    else:
+        raise HTTPException(status_code=404, detail="Favicon not found")
 
 
 @app.get("/health", response_model=HealthResponse)
