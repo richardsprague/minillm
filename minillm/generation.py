@@ -70,8 +70,17 @@ class TextGenerator:
         top_k = top_k or self.config.top_k
         repetition_penalty = repetition_penalty or self.config.repetition_penalty
         
-        # Encode conversation
-        conversation_tokens = self.tokenizer.encode_conversation(conversation)
+        # Encode conversation (matching original style exactly)
+        conversation_tokens = []
+        for i, msg in enumerate(conversation):
+            if msg['role'] == 'user':
+                # Encode user message and add question_end_token
+                user_tokens = self.tokenizer.encode(msg['content'], add_special_tokens=False)
+                conversation_tokens.extend(user_tokens)
+                conversation_tokens.append(self.tokenizer.question_end_token_id)
+        
+        # Add think_start_token to begin generation (matching original behavior)
+        conversation_tokens.append(self.tokenizer.think_start_token_id)
         
         # Convert to tensor
         tokens = torch.tensor([conversation_tokens], dtype=torch.long, device=next(self.model.parameters()).device)
@@ -85,9 +94,10 @@ class TextGenerator:
                 # Process all but the last token for KV cache
                 _ = self.model(tokens[:, :-1], start_pos=0)
         
-        # Generate response tokens
+        # Generate response tokens (following original logic)
         generated_tokens = []
-        current_pos = tokens.shape[1] - 1
+        current_pos = tokens.shape[1]
+        in_thinking = True  # Start in thinking mode
         
         # Track recent tokens for repetition penalty
         recent_tokens = list(conversation_tokens[-50:]) if len(conversation_tokens) > 50 else list(conversation_tokens)
@@ -104,11 +114,22 @@ class TextGenerator:
                         next_token_logits, recent_tokens, repetition_penalty
                     )
                 
-                # Apply top-k filtering
-                if top_k > 0:
-                    next_token_logits = self._top_k_filtering(next_token_logits, top_k)
+                # Handle thinking mode logic (from original code)
+                if tokens[:, -1].item() == self.tokenizer.think_end_token_id:
+                    if in_thinking:
+                        in_thinking = False
+                if not in_thinking:
+                    next_token_logits[self.tokenizer.think_end_token_id] -= 1000
                 
-                # Apply top-p filtering
+                # Handle newline repetition bug
+                newline_tokens = [208, 230, 15078, 19]  # Common newline token IDs
+                if (tokens.shape[1] > 1 and 
+                    tokens[:, -1].item() in newline_tokens and 
+                    tokens[:, -2].item() in newline_tokens):
+                    for n in newline_tokens:
+                        next_token_logits[n] -= 1000
+                
+                # Apply top-p filtering (matching original order)
                 if top_p < 1.0:
                     next_token_logits = self._top_p_filtering(next_token_logits, top_p)
                 
@@ -122,19 +143,8 @@ class TextGenerator:
                 next_token_id = next_token.item()
                 
                 # Check for end tokens
-                if next_token_id in [
-                    self.tokenizer.answer_end_token_id,
-                    self.tokenizer.question_end_token_id
-                ]:
+                if next_token_id == self.tokenizer.answer_end_token_id:
                     break
-                
-                # Handle newline repetition bug
-                newline_tokens = [208, 230, 15078, 19]  # Common newline token IDs
-                if (len(generated_tokens) > 0 and 
-                    generated_tokens[-1] in newline_tokens and 
-                    next_token_id in newline_tokens):
-                    # Skip repeated newlines
-                    continue
                 
                 # Add token to generation
                 generated_tokens.append(next_token_id)
@@ -155,9 +165,21 @@ class TextGenerator:
                     token_text = self.tokenizer.decode([next_token_id], skip_special_tokens=True)
                     print(token_text, end='', flush=True)
         
-        # Decode generated tokens to text
+        # Process generated tokens like the original code
         if generated_tokens:
-            response = self.tokenizer.decode(generated_tokens, skip_special_tokens=True)
+            # Remove answer_end_token if present
+            if generated_tokens and generated_tokens[-1] == self.tokenizer.answer_end_token_id:
+                generated_tokens = generated_tokens[:-1]
+            
+            # Extract message after think_end_token if present
+            if self.tokenizer.think_end_token_id in generated_tokens:
+                think_end_idx = generated_tokens.index(self.tokenizer.think_end_token_id)
+                msg_tokens = generated_tokens[think_end_idx + 1:]
+            else:
+                msg_tokens = generated_tokens
+            
+            # Decode the message tokens
+            response = self.tokenizer.decode(msg_tokens, skip_special_tokens=True)
             return response.strip()
         else:
             return ""
