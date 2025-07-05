@@ -1,0 +1,95 @@
+# MinillM Configuration
+# This file contains all model, training, and inference parameters
+
+model:
+  # Architecture parameters (based on ModelArgs)
+  dim: 512                    # Hidden dimension
+  ffn_dim: 1536              # Feed-forward network dimension  
+  n_layers: 16               # Number of transformer layers
+  n_heads: 16                # Number of attention heads
+  n_kv_heads: 16             # Number of key-value heads (for GQA)
+  vocab_size: 50000          # Vocabulary size
+  max_seq_len: 128           # Maximum sequence length
+  norm_eps: 1e-5             # RMS normalization epsilon
+  rope_theta: 50000          # RoPE base frequency
+  max_batch_size: 4          # Maximum batch size for KV cache
+
+# Model file paths
+paths:
+  model_file: "../model505m_july3_2025/model505m_july3_2025.pt"
+  tokenizer_dir: "../model505m_july3_2025/my_tokenizer_50k_2025"
+  vocab_file: "tokenizer_50k_2025-vocab.json"
+  merges_file: "tokenizer_50k_2025-merges.txt"
+
+# Special tokens
+tokens:
+  pad_token: 0
+  question_end_token: 1
+  answer_end_token: 2
+  think_start_token: 7
+  think_end_token: 8
+
+# Training configuration
+training:
+  batch_size: 1
+  learning_rate: 1e-5
+  weight_decay: 0.1
+  max_grad_norm: 1.0
+  warmup_steps: 1000
+  max_steps: 100000
+  save_steps: 5000
+  eval_steps: 1000
+  logging_steps: 100
+  dataloader_num_workers: 4
+  
+  # Optimization settings
+  optimizer: "adamw"
+  scheduler: "cosine"
+  gradient_accumulation_steps: 8
+  gradient_checkpointing: false
+  mixed_precision: "bf16"
+  
+  # Regularization
+  dropout: 0.01
+  attention_dropout: 0.0
+  
+# Generation configuration
+generation:
+  max_length: 100
+  temperature: 0.7
+  top_p: 0.9
+  top_k: 50
+  repetition_penalty: 1.1
+  do_sample: true
+  
+# Performance optimizations
+performance:
+  compile_model: true
+  use_flash_attention: false  # Set to true if flash-attn is installed
+  use_quantization: false
+  quantization_bits: 8
+  use_gradient_checkpointing: false
+  
+# Device and compute settings
+compute:
+  device: "auto"  # auto, cpu, cuda, mps
+  dtype: "auto"   # auto, float32, float16, bfloat16
+  num_threads: null  # null for auto-detection
+  
+# Logging and evaluation
+logging:
+  use_wandb: false
+  wandb_project: "minillm"
+  use_tensorboard: false
+  log_dir: "./logs"
+  
+evaluation:
+  eval_datasets: []
+  eval_batch_size: 8
+  
+# Web server configuration
+server:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 1
+  max_concurrent_requests: 10
