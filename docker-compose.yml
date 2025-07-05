@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  minillm:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: minillm-prod
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount local code (read-only for production)
+      - .:/app:ro
+      # Mount model directory
+      - ../model505m_july3_2025:/models:ro
+      # Persistent storage for uploads and logs
+      - minillm-uploads:/app/uploads
+      - minillm-logs:/app/logs
+    environment:
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+      - MODEL_PATH=/models
+      - ENVIRONMENT=production
+    restart: unless-stopped
+    command: >
+      sh -c "
+        pip install -e . &&
+        llm-serve --port 8000 --host 0.0.0.0
+      "
+
+volumes:
+  minillm-uploads:
+  minillm-logs:

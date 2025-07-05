@@ -179,7 +179,31 @@ pip install flash-attn
 
 ## 🌐 Deployment
 
-### Local Development
+### Docker Development (Recommended)
+
+**Quick setup for development with live code reloading:**
+
+```bash
+# One-time setup
+./scripts/dev-setup.sh
+
+# Start development server
+./scripts/docker-dev.sh start
+
+# Your code changes are reflected immediately!
+# Web interface: http://localhost:8000
+```
+
+**Available Docker commands:**
+```bash
+./scripts/docker-dev.sh start    # Start development server
+./scripts/docker-dev.sh stop     # Stop server
+./scripts/docker-dev.sh shell    # Open container shell
+./scripts/docker-dev.sh logs     # View logs
+./scripts/docker-dev.sh test     # Run tests
+```
+
+### Local Development (Alternative)
 
 ```bash
 # Start development server with hot reload
@@ -189,11 +213,14 @@ uvicorn minillm.server:app --reload --port 8000
 ### Production Deployment
 
 ```bash
-# Build and run with Docker
-docker build -t minillm .
-docker run -p 8000:8000 minillm
+# Production with Docker Compose
+docker-compose up -d
 
-# Or deploy to cloud platforms
+# Or build and run manually
+docker build -f Dockerfile.dev -t minillm .
+docker run -p 8000:8000 -v $(pwd):/app minillm
+
+# Deploy to cloud platforms
 # Supports Heroku, Railway, Fly.io, etc.
 ```
 

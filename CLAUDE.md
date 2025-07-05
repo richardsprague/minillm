@@ -58,6 +58,22 @@ python finetune_llama.py
 # - Mobile-responsive design
 ```
 
+### Docker Development (Recommended)
+```bash
+# One-time setup
+./scripts/dev-setup.sh
+
+# Start development server with live reloading
+./scripts/docker-dev.sh start
+
+# Available commands:
+./scripts/docker-dev.sh stop     # Stop server
+./scripts/docker-dev.sh shell    # Open container shell  
+./scripts/docker-dev.sh logs     # View logs
+./scripts/docker-dev.sh test     # Run tests
+./scripts/docker-dev.sh clean    # Clean up resources
+```
+
 ### VS Code Tasks
 - **Install dependencies**: `python3 -m pip install -r requirements.txt`
 - **Run Chat Transformer**: `python chat_transformer.py`  

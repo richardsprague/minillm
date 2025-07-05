@@ -1,0 +1,41 @@
+# Development Dockerfile - Dependencies only, code is mounted
+FROM python:3.10-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /app
+
+# Copy only dependency files first (for better caching)
+COPY requirements.txt pyproject.toml ./
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Install additional dependencies for development
+RUN pip install --no-cache-dir \
+    ipython \
+    jupyter \
+    black \
+    flake8 \
+    pytest
+
+# Create non-root user for security
+RUN useradd -m -u 1000 developer && \
+    chown -R developer:developer /app
+USER developer
+
+# Expose port for web interface
+EXPOSE 8000
+
+# Set environment variables
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
+
+# Default command (can be overridden)
+CMD ["python", "-m", "minillm.server"]

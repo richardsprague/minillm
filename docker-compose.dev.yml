@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  minillm-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: minillm-dev
+    ports:
+      - "8000:8000"
+      - "8888:8888"  # For Jupyter if needed
+    volumes:
+      # Mount local code for live editing
+      - .:/app
+      # Mount model directory (adjust path as needed)
+      - ../model505m_july3_2025:/models
+      # Persistent storage for uploaded models
+      - ./uploads:/app/uploads
+      # Cache pip dependencies
+      - pip-cache:/home/developer/.cache/pip
+    environment:
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+      - MODEL_PATH=/models
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
+    # Override default command for development
+    command: >
+      sh -c "
+        echo 'Installing local package in editable mode...' &&
+        pip install -e . &&
+        echo 'Starting Mini LLM Chat server...' &&
+        python -m minillm.server
+      "
+
+volumes:
+  pip-cache:
